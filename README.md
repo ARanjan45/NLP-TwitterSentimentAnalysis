@@ -132,6 +132,34 @@ flowchart TD
 
 ---
 
+## Pipeline Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User / System
+    participant D as Dataset (CSV)
+    participant P as Preprocessor
+    participant V as TF-IDF Vectorizer
+    participant M as ML Models
+    participant E as Evaluator
+
+    U->>D: Load training.1600000.csv.zip
+    D->>P: Raw tweets + polarity labels
+    P->>P: Drop neutral (polarity=2)
+    P->>P: Remap labels (4→1)
+    P->>P: Lowercase all text
+    P->>V: Clean tweet texts
+    V->>V: Fit on train data
+    V->>M: TF-IDF vectors (train + test)
+    M->>M: Train BNB, SVM, LogReg
+    M->>E: Predictions on test set
+    E->>U: Accuracy, Precision, Recall, F1
+    U->>M: New tweet input
+    M->>U: Sentiment prediction (0 or 1)
+```
+
+---
+
 ## ⚙️ Installation
 
 ### 1. Clone the repository
