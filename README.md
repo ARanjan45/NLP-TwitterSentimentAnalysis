@@ -6,7 +6,7 @@
 ![Dataset](https://img.shields.io/badge/Dataset-Sentiment140-red?style=for-the-badge&logo=kaggle&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
-> Automatically classify tweets as **Positive** or **Negative** using TF-IDF vectorization and classical machine learning models trained on 1.6 million tweets.
+> Automatically classify tweets as **Positive** or **Negative** using Porter Stemming, TF-IDF vectorization, and Logistic Regression trained on 1.6 million tweets.
 
 ---
 
@@ -17,13 +17,11 @@
 - [Architecture](#-system-architecture)
 - [Dataset](#-dataset)
 - [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
 - [Installation](#-installation)
 - [Usage](#-usage)
 - [Results](#-results)
 - [Limitations](#-limitations)
 - [Future Scope](#-future-scope)
-- [References](#-references)
 
 ---
 
@@ -31,18 +29,17 @@
 
 This project implements a complete end-to-end **Natural Language Processing (NLP)** pipeline for sentiment analysis on Twitter data. Given a tweet, the system predicts whether its sentiment is **positive** or **negative**.
 
-Three machine learning classifiers are trained and compared:
-- 🔵 **Bernoulli Naive Bayes**
-- 🟠 **Linear Support Vector Machine (SVM)**
-- 🟢 **Logistic Regression**
-
-Text is converted to numerical features using **TF-IDF Vectorization** with unigrams and bigrams.
+The pipeline includes:
+- Text cleaning using **regex**, **stopword removal**, and **Porter Stemming**
+- Feature extraction using **TF-IDF Vectorization**
+- Classification using **Logistic Regression**
+- Model persistence using **Pickle**
 
 ---
 
 ## 🔗 Live Notebook
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1h64fgF-N7sswRoOCF4WxJ4M7nNDSqbM7#scrollTo=RUuQDFmyaS5S)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1h64fgF-N7sswRoOCF4WxJ4M7nNDSqbM7)
 
 > Click the badge above to open and run the full notebook directly in Google Colab — no local setup required.
 
@@ -51,12 +48,19 @@ Text is converted to numerical features using **TF-IDF Vectorization** with unig
 ## 🎬 Demo
 
 ```python
-sample_tweets = ["I love this!", "I hate that!", "It was okay, not great."]
-sample_vec = vectorizer.transform(sample_tweets)
+# Load the saved model and vectorizer
+import pickle
+loaded_model = pickle.load(open('trained_model.sav', 'rb'))
 
-print("BernoulliNB :", bnb.predict(sample_vec))       # [1, 0, 0]
-print("SVM         :", svm.predict(sample_vec))       # [1, 0, 0]
-print("Logistic Reg:", logreg.predict(sample_vec))    # [1, 0, 0]
+# Predict on a sample from test set
+X_new = X_test[200]
+prediction = loaded_model.predict(X_new)
+
+if prediction[0] == 0:
+    print('Negative Tweet')
+else:
+    print('Positive Tweet')
+# Output: Positive Tweet
 ```
 
 > `1` = Positive &nbsp;|&nbsp; `0` = Negative
@@ -65,39 +69,29 @@ print("Logistic Reg:", logreg.predict(sample_vec))    # [1, 0, 0]
 
 ## 🏗️ System Architecture
 
-The full pipeline goes from raw tweets → preprocessing → vectorization → model training → sentiment prediction.
-
 ```mermaid
 flowchart TD
-    A[🐦 Raw Dataset\nSentiment140 - 1.6M Tweets] --> B[Data Loading\npd.read_csv - CSV ZIP]
-    B --> C[Column Selection\npolarity + text]
-    C --> D[Label Filtering\nRemove polarity == 2]
-    D --> E[Label Remapping\n4 → 1 Positive · 0 → 0 Negative]
-    E --> F[Text Preprocessing\nLowercase Conversion]
-    F --> G[Train-Test Split\n80% Train · 20% Test]
-    G --> H[TF-IDF Vectorization\nmax_features=5000 · ngram_range=1,2]
-    H --> I{Model Training}
-    I --> J[Bernoulli\nNaive Bayes]
-    I --> K[Linear SVC\nSVM]
-    I --> L[Logistic\nRegression]
-    J --> M[Model Evaluation\nAccuracy · Precision · Recall · F1]
-    K --> M
-    L --> M
-    M --> N[Best Model Selection]
-    N --> O[🔮 Predict Sentiment\non New Tweets]
-    O --> P{Output}
-    P --> Q[✅ Positive]
-    P --> R[❌ Negative]
+    A[Raw Dataset\nSentiment140 - 1.6M Tweets] --> B[Data Loading\npd.read_csv with ISO-8859-1 encoding]
+    B --> C[Column Naming\ntarget · id · date · flag · user · text]
+    C --> D[Label Remapping\n4 → 1 Positive · 0 → 0 Negative]
+    D --> E[Text Preprocessing\nRegex · Lowercase · Stopword Removal · Porter Stemming]
+    E --> F[Train-Test Split\n80% Train · 20% Test · stratify=Y · random_state=2]
+    F --> G[TF-IDF Vectorization\nfit on train · transform on both]
+    G --> H[Logistic Regression\nmax_iter=1000]
+    H --> I[Model Evaluation\nAccuracy on Train and Test]
+    I --> J[Save Model\npickle]
+    J --> K[Predict Sentiment on New Tweets]
+    K --> L{Output}
+    L --> M[Positive]
+    L --> N[Negative]
 
     style A fill:#1DA1F2,color:#fff
-    style I fill:#f5a623,color:#fff
-    style M fill:#794bc4,color:#fff
-    style O fill:#17bf63,color:#fff
-    style Q fill:#17bf63,color:#fff
-    style R fill:#e0245e,color:#fff
+    style H fill:#f5a623,color:#fff
+    style I fill:#794bc4,color:#fff
+    style K fill:#17bf63,color:#fff
+    style M fill:#17bf63,color:#fff
+    style N fill:#e0245e,color:#fff
 ```
-
-> 💡 Render this diagram locally using [mermaid.live](https://mermaid.live) or it will auto-render on GitHub.
 
 ---
 
@@ -109,12 +103,13 @@ flowchart TD
 |---|---|
 | Source | [Kaggle — Sentiment140](https://www.kaggle.com/datasets/kazanova/sentiment140) |
 | Total Records | 1,600,000 tweets |
-| Classes | 0 = Negative · 4 = Positive (remapped to 0 and 1) |
+| Classes | 0 = Negative · 4 = Positive (remapped to 1) |
 | Language | English |
 | Format | CSV (zipped) |
+| Encoding | ISO-8859-1 |
 | Balance | 800K Negative + 800K Positive |
 
-> ⚠️ Download the dataset from Kaggle and place `training.1600000.processed.noemoticon.csv.zip` in the project root before running.
+> ⚠️ Download the dataset from Kaggle and place `sentiment140.zip` in the working directory before running.
 
 ---
 
@@ -123,40 +118,14 @@ flowchart TD
 | Layer | Technology |
 |---|---|
 | Language | Python 3.8+ |
-| Environment | Google Colab / Jupyter Notebook |
-| Data Handling | pandas |
+| Environment | Google Colab |
+| Data Handling | pandas, numpy |
+| Text Processing | nltk (stopwords), re, PorterStemmer |
 | ML Framework | scikit-learn |
 | Feature Extraction | TfidfVectorizer |
-| Models | BernoulliNB, LinearSVC, LogisticRegression |
-| Evaluation | accuracy_score, classification_report |
-
----
-
-## Pipeline Flow
-
-```mermaid
-sequenceDiagram
-    participant U as User / System
-    participant D as Dataset (CSV)
-    participant P as Preprocessor
-    participant V as TF-IDF Vectorizer
-    participant M as ML Models
-    participant E as Evaluator
-
-    U->>D: Load training.1600000.csv.zip
-    D->>P: Raw tweets + polarity labels
-    P->>P: Drop neutral (polarity=2)
-    P->>P: Remap labels (4→1)
-    P->>P: Lowercase all text
-    P->>V: Clean tweet texts
-    V->>V: Fit on train data
-    V->>M: TF-IDF vectors (train + test)
-    M->>M: Train BNB, SVM, LogReg
-    M->>E: Predictions on test set
-    E->>U: Accuracy, Precision, Recall, F1
-    U->>M: New tweet input
-    M->>U: Sentiment prediction (0 or 1)
-```
+| Model | LogisticRegression |
+| Evaluation | accuracy_score |
+| Persistence | pickle |
 
 ---
 
@@ -165,141 +134,103 @@ sequenceDiagram
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/twitter-sentiment-analysis.git
-cd twitter-sentiment-analysis
+git clone https://github.com/ARanjan45/NLP-TwitterSentimentAnalysis.git
+cd NLP-TwitterSentimentAnalysis
 ```
 
-### 2. Create a virtual environment (optional but recommended)
+### 2. Install dependencies
 
 ```bash
-python -m venv venv
-source venv/bin/activate        # On Windows: venv\Scripts\activate
+pip install numpy pandas scikit-learn nltk kaggle
 ```
 
-### 3. Install dependencies
+### 3. Download the dataset
 
 ```bash
-pip install -r requirements.txt
-```
+# Set up Kaggle API credentials first
+mkdir -p ~/.kaggle
+cp kaggle.json ~/.kaggle/
+chmod 600 ~/.kaggle/kaggle.json
 
-**`requirements.txt`**
+# Download dataset
+kaggle datasets download -d kazanova/sentiment140
 ```
-pandas
-scikit-learn
-numpy
-```
-
-### 4. Download the dataset
-
-Download from [Kaggle — Sentiment140](https://www.kaggle.com/datasets/kazanova/sentiment140) and place the zip file in the `data/` directory.
 
 ---
 
 ## 🚀 Usage
 
-### Run via Jupyter / Google Colab
+### Run via Google Colab
 
-Open `notebooks/twitter_sentiment_analysis.ipynb` and run all cells.
+Open the notebook and run all cells top to bottom.
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1h64fgF-N7sswRoOCF4WxJ4M7nNDSqbM7#scrollTo=RUuQDFmyaS5S)
-
-### Run via Python Script
-
-```python
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split
-from sklearn.naive_bayes import BernoulliNB
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import LinearSVC
-from sklearn.metrics import accuracy_score, classification_report
-
-# Load dataset
-df = pd.read_csv('data/training.1600000.processed.noemoticon.csv.zip',
-                 encoding='latin-1', header=None)
-df = df[[0, 5]]
-df.columns = ['polarity', 'text']
-
-# Filter and remap labels
-df = df[df.polarity != 2]
-df['polarity'] = df['polarity'].map({0: 0, 4: 1})
-
-# Preprocess
-df['clean_text'] = df['text'].apply(lambda x: x.lower())
-
-# Split
-X_train, X_test, y_train, y_test = train_test_split(
-    df['clean_text'], df['polarity'], test_size=0.2, random_state=42)
-
-# Vectorize
-vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
-X_train_tfidf = vectorizer.fit_transform(X_train)
-X_test_tfidf  = vectorizer.transform(X_test)
-
-# Train & Evaluate
-for name, model in [("BernoulliNB", BernoulliNB()),
-                    ("SVM", LinearSVC(max_iter=1000)),
-                    ("Logistic Regression", LogisticRegression(max_iter=100))]:
-    model.fit(X_train_tfidf, y_train)
-    preds = model.predict(X_test_tfidf)
-    print(f"\n{name} Accuracy: {accuracy_score(y_test, preds):.4f}")
-    print(classification_report(y_test, preds))
-```
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1h64fgF-N7sswRoOCF4WxJ4M7nNDSqbM7)
 
 ### Predict on Custom Tweets
 
 ```python
-tweets = ["Python is amazing!", "I can't stand this traffic."]
-vecs   = vectorizer.transform([t.lower() for t in tweets])
-print(model.predict(vecs))   # [1, 0]
+import pickle
+from sklearn.feature_extraction.text import TfidfVectorizer
+from nltk.stem.porter import PorterStemmer
+from nltk.corpus import stopwords
+import re, nltk
+
+nltk.download('stopwords')
+porter_stem = PorterStemmer()
+
+def stemming(content):
+    stemmed = re.sub('[^a-zA-Z]', ' ', content)
+    stemmed = stemmed.lower().split()
+    stemmed = [porter_stem.stem(w) for w in stemmed if w not in stopwords.words('english')]
+    return ' '.join(stemmed)
+
+# Load model
+loaded_model = pickle.load(open('trained_model.sav', 'rb'))
+
+# Transform and predict
+tweet = "I love this so much!"
+processed = stemming(tweet)
+vec = vectorizer.transform([processed])
+pred = loaded_model.predict(vec)
+print("Positive" if pred[0] == 1 else "Negative")
 ```
 
 ---
 
 ## 📊 Results
 
-| Model | Accuracy | Precision | Recall | F1-Score |
-|---|---|---|---|---|
-| Bernoulli Naive Bayes | ~77–78% | ~0.78 | ~0.77 | ~0.77 |
-| **Linear SVC (SVM)** | **~82–83%** | **~0.83** | **~0.82** | **~0.82** |
-| Logistic Regression | ~80–81% | ~0.81 | ~0.80 | ~0.80 |
+| Split | Accuracy |
+|---|---|
+| Training Data | **79.87%** |
+| Test Data | **77.67%** |
 
-> 🏆 **Best Model: Linear SVC (SVM)** — highest accuracy and F1-score across both classes.
-
-### Sample Predictions
-
-| Tweet | BNB | SVM | LogReg |
-|---|---|---|---|
-| "I love this!" | ✅ Positive | ✅ Positive | ✅ Positive |
-| "I hate that!" | ❌ Negative | ❌ Negative | ❌ Negative |
-| "It was okay, not great." | ❌ Negative | ❌ Negative | ❌ Negative |
+> Train/Test split: 1,280,000 / 320,000 tweets · `random_state=2` · `stratify=Y`
 
 ---
 
 ## ⚠️ Limitations
 
-- **Basic preprocessing only** — no stopword removal, stemming, or URL stripping
+- **Single model only** — only Logistic Regression is implemented; no comparison with SVM or Naive Bayes
 - **No neutral class** — tweets are strictly binary (positive/negative)
 - **No deep learning** — transformer-based models (BERT, RoBERTa) would yield higher accuracy
-- **Static vocabulary** — TF-IDF capped at 5,000 features may miss domain-specific terms
+- **Stemming over lemmatization** — Porter Stemmer can produce non-words; lemmatization would be more linguistically accurate
 - **Dataset age** — Sentiment140 is from 2009; may not capture modern Twitter slang
+- **Stemming is slow** — applying PorterStemmer to 1.6M tweets takes ~50 minutes
 
 ---
 
 ## 🔭 Future Scope
 
-- [ ] Add advanced text preprocessing (emoji handling, lemmatization, hashtag segmentation)
+- [ ] Add Bernoulli Naive Bayes and Linear SVC for model comparison
 - [ ] Implement BERT / RoBERTa for state-of-the-art accuracy
+- [ ] Switch to lemmatization for cleaner text normalization
 - [ ] Extend to 3-class classification (Positive / Neutral / Negative)
 - [ ] Real-time tweet ingestion via Twitter/X API
 - [ ] Deploy as a Flask or FastAPI web application
 - [ ] Add model explainability using LIME or SHAP
-
 
 ---
 
 ## 🪪 License
 
 This project is licensed under the [MIT License](LICENSE).
-
----
